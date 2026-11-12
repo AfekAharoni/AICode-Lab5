@@ -3,10 +3,12 @@
 import json
 import os
 from pathlib import Path
+from typing import Any
 
-from computer import choose_move
 from captured import captured_pieces
+from computer import choose_move
 from game import (
+    Position,
     copy_position,
     insufficient_material,
     legal_moves,
@@ -17,17 +19,30 @@ from game import (
     winner,
 )
 
-
 # Legal from the standard starting position under this game's rules.
 # Next move: b7-a8, capturing a rook and reaching the last rank.
 PROMOTION_SETUP = [
-    ("a2", "a4"), ("h7", "h5"),
-    ("a4", "a5"), ("h5", "h4"),
-    ("a5", "a6"), ("h4", "h3"),
-    ("a6", "b7"), ("h3", "g2"),
+    ("a2", "a4"),
+    ("h7", "h5"),
+    ("a4", "a5"),
+    ("h5", "h4"),
+    ("a5", "a6"),
+    ("h4", "h3"),
+    ("a6", "b7"),
+    ("h3", "g2"),
 ]
 
 SAVE_VERSION = 1
+# A saved move is [source, target] or [source, target, promotion piece].
+SAVED_MOVE_LENGTHS = (2, 3)
+
+
+def valid_move_entry(entry: object) -> bool:
+    return (
+        isinstance(entry, list)
+        and len(entry) in SAVED_MOVE_LENGTHS
+        and all(isinstance(item, str) for item in entry)
+    )
 
 
 class Session:
@@ -35,26 +50,26 @@ class Session:
     # it is not reset when a new game starts.
     save_path = Path(__file__).parent / "game.save.json"
 
-    def __init__(self, opponent="human"):
+    def __init__(self, opponent: str = "human") -> None:
         self.reset(opponent)
 
-    def reset(self, opponent="human"):
+    def reset(self, opponent: str = "human") -> None:
         """Start a new game, discarding the previous one."""
         if opponent not in ("human", "computer"):
             raise ValueError("Unknown opponent")
         self.position = new_position()
-        self.notation = []
+        self.notation: list[str] = []
         # Positions before each move, oldest first; undo restores the last one.
-        self.history = []
+        self.history: list[Position] = []
         # The arguments given to play for each move, oldest first. A save keeps these;
         # loading replays them, which also rebuilds history for undo.
-        self.played = []
+        self.played: list[list[str]] = []
         # The piece each move took (None if it took nothing), parallel to history.
-        self.captures = []
-        self.captured = []
+        self.captures: list[str | None] = []
+        self.captured: list[str] = []
         self.opponent = opponent
 
-    def play(self, source, target, promotion=None):
+    def play(self, source: str, target: str, promotion: str | None = None) -> None:
         if self.game_over():
             raise ValueError("The game is over")
         before = copy_position(self.position)
@@ -77,7 +92,7 @@ class Session:
     def game_over(self) -> bool:
         return status(self.position) == "checkmate" or self.draw() is not None
 
-    def undo(self):
+    def undo(self) -> None:
         """Take back the last move; against the computer, take back a full turn.
 
         Against the computer, undo removes the computer's reply and the player's move
@@ -97,7 +112,7 @@ class Session:
             self.captures.pop()
         self.after_move()
 
-    def to_save(self):
+    def to_save(self) -> dict[str, Any]:
         return {
             "version": SAVE_VERSION,
             "opponent": self.opponent,
@@ -108,23 +123,25 @@ class Session:
         }
 
     @classmethod
-    def from_save(cls, data):
+    def from_save(cls, data: object) -> "Session":
         """Rebuild a session by replaying the saved moves, checking them against the save."""
         if not isinstance(data, dict) or data.get("version") != SAVE_VERSION:
             raise ValueError("Not a saved game from this version")
         played = data.get("moves")
-        if not isinstance(played, list) or not all(isinstance(m, list) for m in played):
+        if not isinstance(played, list) or not all(valid_move_entry(m) for m in played):
             raise ValueError("The saved game has no valid move list")
-        session = cls(data.get("opponent"))
+        session = cls(data.get("opponent", ""))  # rejects an unknown opponent
         for entry in played:
             session.play(*entry)
-        if (session.notation != data.get("notation")
-                or session.position[0] != data.get("board")
-                or session.position[1] != data.get("turn")):
+        if (
+            session.notation != data.get("notation")
+            or session.position[0] != data.get("board")
+            or session.position[1] != data.get("turn")
+        ):
             raise ValueError("The saved game does not match its moves")
         return session
 
-    def save(self):
+    def save(self) -> None:
         path = Path(self.save_path)
         temporary = path.with_name(path.name + ".tmp")
         try:
@@ -133,20 +150,24 @@ class Session:
         except OSError as error:
             raise ValueError(f"Could not save the game: {error.strerror}") from None
 
-    def load(self):
+    def load(self) -> None:
         try:
             text = Path(self.save_path).read_text()
         except FileNotFoundError:
             raise ValueError("There is no saved game") from None
         except OSError as error:
             raise ValueError(f"Could not load the game: {error.strerror}") from None
-        restored = self.from_save(json.loads(text))
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            raise ValueError("The saved game is damaged") from None
+        restored = self.from_save(data)
         vars(self).update(vars(restored))
 
-    def after_move(self):
+    def after_move(self) -> None:
         self.captured = captured_pieces(self.captures)
 
-    def view(self):
+    def view(self) -> dict[str, Any]:
         return {
             "board": self.position[0],
             "turn": self.position[1],
@@ -158,36 +179,50 @@ class Session:
             **self.sidebar(),
         }
 
-    def computer_to_move(self):
-        return (self.opponent == "computer" and self.position[1] == "b"
-                and not self.game_over())
+    def computer_to_move(self) -> bool:
+        return self.opponent == "computer" and self.position[1] == "b" and not self.game_over()
 
-    def sidebar(self):
+    def sidebar(self) -> dict[str, Any]:
         return {"captured": self.captured}
 
-    def dispatch(self, action):
+    def legal(self, source: object) -> dict[str, list[str]]:
+        """Where the piece on source may go, and which of those squares promote."""
+        targets = legal_moves(self.position, source)
+        if self.game_over():
+            return {"targets": [], "promotions": []}
+        assert isinstance(source, str)  # legal_moves() rejects anything else
+        return {
+            "targets": targets,
+            "promotions": [t for t in targets if promotes(self.position, source, t)],
+        }
+
+    def computer_move(self) -> None:
+        if not self.computer_to_move():
+            raise ValueError("It is not the computer's turn")
+        chosen = choose_move(self.position)
+        if chosen is None:
+            raise ValueError("The computer has no move")
+        self.play(*chosen)
+
+    def dispatch(self, action: dict[str, Any]) -> dict[str, Any]:
         command = action.get("action")
-        if command == "move":
+        simple = {
+            "computer-move": self.computer_move,
+            "undo": self.undo,
+            "save": self.save,
+            "load": self.load,
+        }
+        if command in simple:
+            simple[command]()
+        elif command == "move":
             if self.computer_to_move():
                 raise ValueError("Wait for the computer's move")
-            self.play(action.get("source"), action.get("target"), action.get("promotion"))
-        elif command == "computer-move":
-            if not self.computer_to_move():
-                raise ValueError("It is not the computer's turn")
-            self.play(*choose_move(self.position))
-        elif command == "undo":
-            self.undo()
-        elif command == "save":
-            self.save()
-        elif command == "load":
-            self.load()
+            source, target = action.get("source"), action.get("target")
+            if not isinstance(source, str) or not isinstance(target, str):
+                raise ValueError("Expected a source and a target square")
+            self.play(source, target, action.get("promotion"))
         elif command == "legal":
-            source = action.get("source")
-            targets = legal_moves(self.position, source)
-            if self.game_over():
-                targets = []
-            return {"targets": targets,
-                    "promotions": [t for t in targets if promotes(self.position, source, t)]}
+            return self.legal(action.get("source"))
         elif command == "new":
             self.reset(action.get("opponent", "human"))
         elif command == "promotion-setup":

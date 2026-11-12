@@ -7,12 +7,22 @@ Python chess game for AICODE Lab 5 (pair/team work). See `README.md` for the ful
 ```sh
 source .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m pytest          # all tests, including mypy (tests/test_types.py)
-mypy                      # type check only; settings in pyproject.toml
-python3 server.py         # http://127.0.0.1:8000
+python -m playwright install chromium   # once, for tests/test_gui.py
+python3 server.py                       # http://127.0.0.1:8000
 ```
 
-Before every commit: `python -m pytest` must pass (it includes the type check).
+## Checks: all four must pass before every commit
+
+```sh
+.venv/bin/ruff check .                   # lint: defaults + E, W, I, N, RET, PL, PT
+.venv/bin/ruff format --check .          # formatting (fix with: ruff format .)
+.venv/bin/mypy --strict .                # types; strict = true is also in pyproject.toml
+.venv/bin/python -m pytest -q --cov=. --cov-report=term-missing   # tests + coverage
+```
+
+Settings for all tools are in `pyproject.toml`. pytest also runs mypy
+(`tests/test_types.py`). Do not silence findings with `# noqa` or `# type: ignore`; fix the
+code. Coverage is measured on app code only; keep it at 98% or above.
 
 ## Layout
 
@@ -32,7 +42,10 @@ Before every commit: `python -m pytest` must pass (it includes the type check).
 - Python 3.10+, standard library only at runtime.
 - Every new feature comes with tests. Tests drive the game through
   `Session.dispatch({...})` where possible.
-- New code should have type annotations; keep `mypy` clean (no blanket `# type: ignore`).
+- All code is fully annotated (`mypy --strict`). A position is `game.Position`, a board
+  `game.Board`.
+- `pytest.raises` always takes `match=`, so a test cannot pass on the wrong error.
+- A bug fix starts with a test that fails on the old code.
 - Record team decisions (e.g. undo behavior against the computer) in `README.md` under
   "Team decisions", and encode them in tests.
 

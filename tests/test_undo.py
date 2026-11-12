@@ -5,21 +5,22 @@ the player's move), so it is the player's move again.
 """
 
 import random
+from typing import Any
 
 from game import new_position
 from session import Session
 
 
-def play(session, *moves):
+def play(session: Session, *moves: tuple[str, str]) -> None:
     for source, target in moves:
         session.dispatch({"action": "move", "source": source, "target": target})
 
 
-def undo(session):
+def undo(session: Session) -> dict[str, Any]:
     return session.dispatch({"action": "undo"})
 
 
-def test_undo_at_the_beginning_does_nothing():
+def test_undo_at_the_beginning_does_nothing() -> None:
     session = Session()
     view = undo(session)
     assert session.position == new_position()
@@ -27,7 +28,7 @@ def test_undo_at_the_beginning_does_nothing():
     assert view["turn"] == "w"
 
 
-def test_undo_one_move_restores_board_and_turn():
+def test_undo_one_move_restores_board_and_turn() -> None:
     session = Session()
     play(session, ("e2", "e4"))
     view = undo(session)
@@ -36,7 +37,7 @@ def test_undo_one_move_restores_board_and_turn():
     assert view["moves"] == []
 
 
-def test_undo_restores_captured_piece_and_side_to_move():
+def test_undo_restores_captured_piece_and_side_to_move() -> None:
     session = Session()
     play(session, ("e2", "e4"), ("d7", "d5"), ("e4", "d5"))
     assert session.position[0]["d5"] == "wP"
@@ -48,7 +49,7 @@ def test_undo_restores_captured_piece_and_side_to_move():
     assert view["moves"] == ["e2-e4", "d7-d5"]
 
 
-def test_repeated_undo_returns_to_start_then_stops():
+def test_repeated_undo_returns_to_start_then_stops() -> None:
     session = Session()
     play(session, ("e2", "e4"), ("e7", "e5"), ("g1", "f3"))
     for _ in range(5):
@@ -57,7 +58,7 @@ def test_repeated_undo_returns_to_start_then_stops():
     assert session.notation == []
 
 
-def test_undo_does_not_share_board_with_history():
+def test_undo_does_not_share_board_with_history() -> None:
     """Moves after an undo must not corrupt earlier saved positions."""
     session = Session()
     play(session, ("e2", "e4"), ("e7", "e5"))
@@ -69,7 +70,7 @@ def test_undo_does_not_share_board_with_history():
     assert session.position == new_position()
 
 
-def test_play_continues_normally_after_undo():
+def test_play_continues_normally_after_undo() -> None:
     session = Session()
     play(session, ("e2", "e4"))
     undo(session)
@@ -79,7 +80,7 @@ def test_play_continues_normally_after_undo():
     assert "e4" not in session.position[0]
 
 
-def test_undo_after_checkmate_resumes_the_game():
+def test_undo_after_checkmate_resumes_the_game() -> None:
     session = Session()
     play(session, ("f2", "f3"), ("e7", "e5"), ("g2", "g4"), ("d8", "h4"))
     assert session.view()["status"] == "checkmate"
@@ -89,7 +90,7 @@ def test_undo_after_checkmate_resumes_the_game():
     assert "h4" in session.dispatch({"action": "legal", "source": "d8"})["targets"]
 
 
-def test_new_game_clears_undo_history():
+def test_new_game_clears_undo_history() -> None:
     session = Session()
     play(session, ("e2", "e4"))
     session.dispatch({"action": "new"})
@@ -98,7 +99,7 @@ def test_new_game_clears_undo_history():
     assert session.notation == []
 
 
-def test_undo_against_computer_takes_back_both_moves():
+def test_undo_against_computer_takes_back_both_moves() -> None:
     random.seed(0)
     session = Session("computer")
     play(session, ("e2", "e4"))
@@ -111,7 +112,7 @@ def test_undo_against_computer_takes_back_both_moves():
     assert view["opponent"] == "computer"
 
 
-def test_undo_against_computer_keeps_earlier_turns():
+def test_undo_against_computer_keeps_earlier_turns() -> None:
     random.seed(1)
     session = Session("computer")
     play(session, ("e2", "e4"))
@@ -126,7 +127,7 @@ def test_undo_against_computer_keeps_earlier_turns():
     assert not session.computer_to_move()
 
 
-def test_undo_against_computer_before_it_replies_takes_back_one_move():
+def test_undo_against_computer_before_it_replies_takes_back_one_move() -> None:
     session = Session("computer")
     play(session, ("e2", "e4"))
     assert session.computer_to_move()
@@ -135,10 +136,12 @@ def test_undo_against_computer_before_it_replies_takes_back_one_move():
     assert session.notation == []
 
 
-def test_undo_after_player_checkmates_computer_takes_back_one_move():
+def test_undo_after_player_checkmates_computer_takes_back_one_move() -> None:
     session = Session("computer")
-    session.position = [{"g1": "wK", "a1": "wR", "g8": "bK",
-                         "f7": "bP", "g7": "bP", "h7": "bP"}, "w"]
+    session.position = [
+        {"g1": "wK", "a1": "wR", "g8": "bK", "f7": "bP", "g7": "bP", "h7": "bP"},
+        "w",
+    ]
     start = [session.position[0].copy(), "w"]
     play(session, ("a1", "a8"))
     assert session.view()["status"] == "checkmate"

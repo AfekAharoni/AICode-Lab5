@@ -1,11 +1,10 @@
 """Automatic draw when neither side has enough material to checkmate."""
 
 import pytest
-
 from boards import assert_valid_board, board
+
 from game import insufficient_material, new_position, status
 from session import Session
-
 
 DRAWN = {
     "kings only": board("wK e1", "bK e8"),
@@ -34,18 +33,18 @@ NOT_DRAWN = {
 
 
 @pytest.mark.parametrize("name", DRAWN)
-def test_insufficient_material_is_detected(name):
+def test_insufficient_material_is_detected(name: str) -> None:
     assert insufficient_material(DRAWN[name])
 
 
 @pytest.mark.parametrize("name", NOT_DRAWN)
-def test_enough_material_is_not_a_draw(name):
+def test_enough_material_is_not_a_draw(name: str) -> None:
     assert not insufficient_material(NOT_DRAWN[name])
 
 
 @pytest.mark.parametrize("side", "wb")
 @pytest.mark.parametrize("name", DRAWN)
-def test_session_reports_draw_for_either_side_to_move(name, side):
+def test_session_reports_draw_for_either_side_to_move(name: str, side: str) -> None:
     session = Session()
     session.position = [DRAWN[name].copy(), side]
     view = session.view()
@@ -55,14 +54,14 @@ def test_session_reports_draw_for_either_side_to_move(name, side):
 
 
 @pytest.mark.parametrize("name", NOT_DRAWN)
-def test_session_has_no_draw_with_enough_material(name):
+def test_session_has_no_draw_with_enough_material(name: str) -> None:
     session = Session()
     session.position = [NOT_DRAWN[name].copy(), "w"]
     assert session.view()["draw"] is None
     assert not session.game_over()
 
 
-def test_capturing_the_last_rook_draws_and_ends_the_game():
+def test_capturing_the_last_rook_draws_and_ends_the_game() -> None:
     session = Session()
     session.position = [board("wK e1", "bK e8", "wN d4", "bR c6"), "w"]
     assert session.view()["draw"] is None
@@ -73,10 +72,11 @@ def test_capturing_the_last_rook_draws_and_ends_the_game():
     with pytest.raises(ValueError, match="over"):
         session.dispatch({"action": "move", "source": "e8", "target": "d8"})
     legal = session.dispatch({"action": "legal", "source": "e8"})
-    assert legal["targets"] == [] and legal["promotions"] == []
+    assert legal["targets"] == []
+    assert legal["promotions"] == []
 
 
-def test_undo_after_a_draw_reopens_the_game():
+def test_undo_after_a_draw_reopens_the_game() -> None:
     session = Session()
     session.position = [board("wK e1", "bK e8", "wN d4", "bR c6"), "w"]
     session.dispatch({"action": "move", "source": "d4", "target": "c6"})
@@ -89,7 +89,7 @@ def test_undo_after_a_draw_reopens_the_game():
     assert "c6" in session.dispatch({"action": "legal", "source": "d4"})["targets"]
 
 
-def test_undo_against_computer_after_drawing_takes_back_only_the_players_move():
+def test_undo_against_computer_after_drawing_takes_back_only_the_players_move() -> None:
     session = Session("computer")
     session.position = [board("wK e1", "bK e8", "wN d4", "bR c6"), "w"]
     session.dispatch({"action": "move", "source": "d4", "target": "c6"})
@@ -100,22 +100,22 @@ def test_undo_against_computer_after_drawing_takes_back_only_the_players_move():
     assert view["draw"] is None
 
 
-def test_computer_does_not_move_after_a_draw():
+def test_computer_does_not_move_after_a_draw() -> None:
     session = Session("computer")
     session.position = [board("wK e1", "bK e8", "bN g8"), "b"]
     assert not session.computer_to_move()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="not the computer's turn"):
         session.dispatch({"action": "computer-move"})
 
 
-def test_stalemate_is_still_reported_as_stalemate():
+def test_stalemate_is_still_reported_as_stalemate() -> None:
     session = Session()
     session.position = [board("bK a8", "wQ b6", "wK c1"), "b"]
     assert status(session.position) == "stalemate"
     assert session.view()["draw"] == "stalemate"
 
 
-def test_checkmate_is_not_a_draw():
+def test_checkmate_is_not_a_draw() -> None:
     session = Session()
     session.position = [board("wK g1", "wR a1", "bK g8", "bP f7", "bP g7", "bP h7"), "w"]
     view = session.dispatch({"action": "move", "source": "a1", "target": "a8"})
@@ -124,7 +124,7 @@ def test_checkmate_is_not_a_draw():
     assert view["winner"] == "White"
 
 
-def test_new_game_clears_the_draw():
+def test_new_game_clears_the_draw() -> None:
     session = Session()
     session.position = [DRAWN["kings only"].copy(), "w"]
     assert session.game_over()
@@ -133,14 +133,17 @@ def test_new_game_clears_the_draw():
     assert session.position == new_position()
 
 
-@pytest.mark.parametrize("bad", [
-    {"e1": "wK"},                                   # no black king
-    {"e1": "wK", "e2": "bK"},                       # kings touching
-    {"e1": "wK", "e8": "bK", "a1": "wP"},           # pawn on the first rank
-    {"e1": "wK", "e8": "bK", "a2": "xQ"},           # unknown side
-    {"e1": "wK", "e8": "bK", "a2": "wZ"},           # unknown piece
-    {"e1": "wK", "e8": "bK", "i2": "wN"},           # off the board
-])
-def test_invalid_test_boards_are_rejected(bad):
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"e1": "wK"},  # no black king
+        {"e1": "wK", "e2": "bK"},  # kings touching
+        {"e1": "wK", "e8": "bK", "a1": "wP"},  # pawn on the first rank
+        {"e1": "wK", "e8": "bK", "a2": "xQ"},  # unknown side
+        {"e1": "wK", "e8": "bK", "a2": "wZ"},  # unknown piece
+        {"e1": "wK", "e8": "bK", "i2": "wN"},  # off the board
+    ],
+)
+def test_invalid_test_boards_are_rejected(bad: dict[str, str]) -> None:
     with pytest.raises((AssertionError, ValueError)):
         assert_valid_board(bad)

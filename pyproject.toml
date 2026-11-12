@@ -6,6 +6,22 @@ pythonpath = ["."]
 python_version = "3.10"
 files = ["."]
 exclude = ["^\\.venv/"]
-check_untyped_defs = true
-warn_unused_ignores = true
-warn_redundant_casts = true
+strict = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [".claude"]
+
+[tool.ruff.lint]
+# Ruff's defaults plus: pycodestyle (E, W), import order (I), return style (RET),
+# naming (N), pylint (PL) and pytest style (PT).
+extend-select = ["E", "W", "I", "N", "RET", "PL", "PT"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests compare against literal values and use many small helpers.
+"tests/*" = ["PLR2004", "PLR0913"]
+
+[tool.coverage.run]
+branch = true
+omit = [".venv/*", "tests/*"]

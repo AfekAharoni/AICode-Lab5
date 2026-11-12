@@ -95,3 +95,6 @@ contributions to inspect and integrate, not a guarantee of correctness in every 
   square, or None), not from comparing the board with the starting position. That
   comparison counted a promoted pawn as captured and missed captured promoted pieces.
   Undo pops the log; loading rebuilds it by replaying the saved moves.
+- **The computer scores any draw as 0**, including insufficient material, not only
+  stalemate. Before, taking the last piece into a dead draw counted as a material gain.
+- `python3 server.py --save-file PATH` chooses where Save and Load keep the game.

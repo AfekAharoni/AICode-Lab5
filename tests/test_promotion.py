@@ -7,7 +7,7 @@ from game import copy_position, legal_moves, move
 from session import Session
 
 
-def test_white_capture_promotion():
+def test_white_capture_promotion() -> None:
     session = Session()
     session.dispatch({"action": "promotion-setup"})
     legal = session.dispatch({"action": "legal", "source": "b7"})
@@ -21,7 +21,7 @@ def test_white_capture_promotion():
 
 
 @pytest.mark.parametrize("piece", list("QRBN"))
-def test_chosen_piece_and_notation(piece):
+def test_chosen_piece_and_notation(piece: str) -> None:
     position: list[Any] = [{"a1": "wK", "h6": "bK", "d7": "wP"}, "w"]
     label = move(position, "d7", "d8", piece)
     assert position[0]["d8"] == "w" + piece
@@ -29,20 +29,42 @@ def test_chosen_piece_and_notation(piece):
 
 
 @pytest.mark.parametrize("choice", [None, "K", "P", "X"])
-def test_promotion_needs_a_valid_choice(choice):
+def test_promotion_needs_a_valid_choice(choice: str | None) -> None:
     position: list[Any] = [{"a1": "wK", "h6": "bK", "d7": "wP"}, "w"]
     before = copy_position(position)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Choose a queen"):
         move(position, "d7", "d8", choice)
     assert position == before
 
 
-def test_computer_promotes():
+def test_computer_promotes() -> None:
     position = [{"a8": "wK", "e8": "bK", "h2": "bP"}, "b"]
     assert choose_move(position) == ("h2", "h1", "Q")
 
 
-def test_choice_only_on_promotion():
+def test_choice_only_on_promotion() -> None:
     session = Session()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Only a pawn"):
         session.play("e2", "e4", "Q")
+
+
+def test_promotion_that_gives_check_is_marked() -> None:
+    position: list[Any] = [{"a1": "wK", "e8": "bK", "d7": "wP"}, "w"]
+    assert move(position, "d7", "d8", "Q") == "d7-d8=Q+"
+
+
+def test_computer_promotes_through_the_session_and_undo_restores_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = Session("computer")
+    session.position = [{"a1": "wK", "h8": "bK", "g2": "bP", "h1": "wR", "a7": "wP"}, "w"]
+    session.dispatch({"action": "move", "source": "a1", "target": "b1"})
+    view = session.dispatch({"action": "computer-move"})
+    assert view["moves"][-1] == "g2xh1=Q+"
+    assert view["board"]["h1"] == "bQ"
+    assert view["captured"] == ["wR"]
+    view = session.dispatch({"action": "undo"})
+    assert view["moves"] == []
+    assert view["board"]["g2"] == "bP"
+    assert view["board"]["h1"] == "wR"
+    assert view["captured"] == []

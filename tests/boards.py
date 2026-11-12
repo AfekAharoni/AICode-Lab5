@@ -14,7 +14,8 @@ def assert_valid_board(board: dict[str, str]) -> None:
         if piece[1] == "P":
             assert square[1] not in "18", f"pawn on {square}"
     kings = {side: [s for s, p in board.items() if p == side + "K"] for side in "wb"}
-    assert len(kings["w"]) == 1 and len(kings["b"]) == 1, "need one king per side"
+    assert len(kings["w"]) == 1, "need one white king"
+    assert len(kings["b"]) == 1, "need one black king"
     (wx, wy), (bx, by) = coordinates(kings["w"][0]), coordinates(kings["b"][0])
     assert max(abs(wx - bx), abs(wy - by)) > 1, "kings cannot touch"
 

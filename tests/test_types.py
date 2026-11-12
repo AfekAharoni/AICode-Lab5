@@ -8,7 +8,7 @@ api = pytest.importorskip("mypy.api")
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def test_mypy_passes(monkeypatch):
+def test_mypy_passes(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(ROOT)
     stdout, stderr, exit_status = api.run([])
     assert exit_status == 0, stdout + stderr

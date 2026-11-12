@@ -4,21 +4,24 @@ import argparse
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from typing import Any
 
 from session import Session
 
 STATIC = Path(__file__).parent / "static"
+MAX_REQUEST_BYTES = 1_000_000
 
 
-def make_server(port: int = 8000, game: Session | None = None,
-                save_path: str | Path | None = None) -> HTTPServer:
+def make_server(
+    port: int = 8000, game: Session | None = None, save_path: str | Path | None = None
+) -> HTTPServer:
     """Serve one game. Tests may pass their own session to set up a position."""
     session = game if game is not None else Session()
     if save_path is not None:
         session.save_path = Path(save_path)
 
     class Handler(BaseHTTPRequestHandler):
-        def respond(self, code, body, content_type):
+        def respond(self, code: int, body: bytes, content_type: str) -> None:
             self.send_response(code)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
@@ -26,33 +29,35 @@ def make_server(port: int = 8000, game: Session | None = None,
             self.end_headers()
             self.wfile.write(body)
 
-        def send_json(self, code, value):
+        def send_json(self, code: int, value: Any) -> None:
             self.respond(code, json.dumps(value).encode(), "application/json")
 
-        def do_GET(self):
+        def do_GET(self) -> None:
             if self.path == "/api/state":
                 self.send_json(200, session.view())
                 return
-            routes = {"/": ("index.html", "text/html; charset=utf-8"),
-                      "/app.js": ("app.js", "text/javascript; charset=utf-8"),
-                      "/style.css": ("style.css", "text/css; charset=utf-8")}
+            routes = {
+                "/": ("index.html", "text/html; charset=utf-8"),
+                "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+                "/style.css": ("style.css", "text/css; charset=utf-8"),
+            }
             if self.path not in routes:
                 self.send_json(404, {"error": "Not found"})
                 return
             name, content_type = routes[self.path]
             self.respond(200, (STATIC / name).read_bytes(), content_type)
 
-        def do_POST(self):
+        def do_POST(self) -> None:
             if self.path != "/api/action":
                 self.send_json(404, {"error": "Not found"})
                 return
             try:
                 size = int(self.headers.get("Content-Length", "0"))
-                if not 0 < size <= 1_000_000:
+                if not 0 < size <= MAX_REQUEST_BYTES:
                     raise ValueError("Invalid request size")
                 action = json.loads(self.rfile.read(size))
                 if not isinstance(action, dict):
-                    raise ValueError("Expected an action object")
+                    raise TypeError("Expected an action object")
                 result = session.dispatch(action)
             except (ValueError, TypeError) as error:
                 self.send_json(400, {"error": str(error)})
@@ -62,13 +67,20 @@ def make_server(port: int = 8000, game: Session | None = None,
     return HTTPServer(("127.0.0.1", port), Handler)
 
 
-if __name__ == "__main__":
+def build_server(argv: list[str] | None = None) -> HTTPServer:
+    """Make the server from command-line arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--save-file", help="where Save and Load keep the game "
-                        "(default: game.save.json next to server.py)")
-    args = parser.parse_args()
-    server = make_server(args.port, args.save_file)
+    parser.add_argument(
+        "--save-file",
+        help="where Save and Load keep the game (default: game.save.json next to server.py)",
+    )
+    args = parser.parse_args(argv)
+    return make_server(args.port, save_path=args.save_file)
+
+
+if __name__ == "__main__":
+    server = build_server()
     print(f"Open http://127.0.0.1:{server.server_port}", flush=True)
     try:
         server.serve_forever()

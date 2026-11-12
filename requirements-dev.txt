@@ -1,3 +1,5 @@
 pytest
 pytest-playwright
 mypy
+ruff
+pytest-cov
