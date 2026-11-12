@@ -75,6 +75,30 @@ def test_capturing_the_last_rook_draws_and_ends_the_game():
     assert session.dispatch({"action": "legal", "source": "e8"}) == {"targets": []}
 
 
+def test_undo_after_a_draw_reopens_the_game():
+    session = Session()
+    session.position = [board("wK e1", "bK e8", "wN d4", "bR c6"), "w"]
+    session.dispatch({"action": "move", "source": "d4", "target": "c6"})
+    assert session.game_over()
+    view = session.dispatch({"action": "undo"})
+    assert view["draw"] is None
+    assert view["moves"] == []
+    assert view["board"]["c6"] == "bR"
+    assert view["turn"] == "w"
+    assert "c6" in session.dispatch({"action": "legal", "source": "d4"})["targets"]
+
+
+def test_undo_against_computer_after_drawing_takes_back_only_the_players_move():
+    session = Session("computer")
+    session.position = [board("wK e1", "bK e8", "wN d4", "bR c6"), "w"]
+    session.dispatch({"action": "move", "source": "d4", "target": "c6"})
+    assert not session.computer_to_move()  # the computer does not reply to a draw
+    view = session.dispatch({"action": "undo"})
+    assert view["moves"] == []
+    assert view["turn"] == "w"
+    assert view["draw"] is None
+
+
 def test_computer_does_not_move_after_a_draw():
     session = Session("computer")
     session.position = [board("wK e1", "bK e8", "bN g8"), "b"]

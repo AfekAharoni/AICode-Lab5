@@ -10,9 +10,9 @@ from session import Session
 STATIC = Path(__file__).parent / "static"
 
 
-def make_server(port=8000, session=None):
+def make_server(port: int = 8000, game: Session | None = None) -> HTTPServer:
     """Serve one game. Tests may pass their own session to set up a position."""
-    session = session if session is not None else Session()
+    session = game if game is not None else Session()
 
     class Handler(BaseHTTPRequestHandler):
         def respond(self, code, body, content_type):

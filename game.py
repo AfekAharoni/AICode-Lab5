@@ -53,7 +53,7 @@ def status(position):
     return "checkmate" if check else "stalemate"
 
 
-def insufficient_material(board):
+def insufficient_material(board: dict[str, str]) -> bool:
     """True when neither side can ever checkmate.
 
     That is: kings alone, kings with a single bishop or knight, or kings with bishops

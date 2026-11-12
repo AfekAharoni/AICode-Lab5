@@ -5,7 +5,7 @@ from game import coordinates
 PIECES = {side + kind for side in "wb" for kind in "KQRBNP"}
 
 
-def assert_valid_board(board):
+def assert_valid_board(board: dict[str, str]) -> None:
     """A test board must be a position that could occur: real squares and pieces,
     exactly one king per side, kings not touching, no pawns on the first or last rank."""
     for square, piece in board.items():
@@ -19,9 +19,9 @@ def assert_valid_board(board):
     assert max(abs(wx - bx), abs(wy - by)) > 1, "kings cannot touch"
 
 
-def board(*placements):
+def board(*placements: str) -> dict[str, str]:
     """board("wK e1", "bK e8", "wB c1") -> {"e1": "wK", "e8": "bK", "c1": "wB"}"""
-    result = {}
+    result: dict[str, str] = {}
     for placement in placements:
         piece, square = placement.split()
         assert square not in result, f"two pieces on {square}"
