@@ -10,9 +10,12 @@ from session import Session
 STATIC = Path(__file__).parent / "static"
 
 
-def make_server(port: int = 8000, game: Session | None = None) -> HTTPServer:
+def make_server(port: int = 8000, game: Session | None = None,
+                save_path: str | Path | None = None) -> HTTPServer:
     """Serve one game. Tests may pass their own session to set up a position."""
     session = game if game is not None else Session()
+    if save_path is not None:
+        session.save_path = Path(save_path)
 
     class Handler(BaseHTTPRequestHandler):
         def respond(self, code, body, content_type):
@@ -62,8 +65,10 @@ def make_server(port: int = 8000, game: Session | None = None) -> HTTPServer:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--save-file", help="where Save and Load keep the game "
+                        "(default: game.save.json next to server.py)")
     args = parser.parse_args()
-    server = make_server(args.port)
+    server = make_server(args.port, args.save_file)
     print(f"Open http://127.0.0.1:{server.server_port}", flush=True)
     try:
         server.serve_forever()

@@ -1,5 +1,9 @@
 """Application actions and information shown beside the board."""
 
+import json
+import os
+from pathlib import Path
+
 from computer import choose_move
 from game import (
     copy_position,
@@ -21,8 +25,14 @@ PROMOTION_SETUP = [
     ("a6", "b7"), ("h3", "g2"),
 ]
 
+SAVE_VERSION = 1
+
 
 class Session:
+    # Where save and load read and write. Set per instance to use another file;
+    # it is not reset when a new game starts.
+    save_path = Path(__file__).parent / "game.save.json"
+
     def __init__(self, opponent="human"):
         self.reset(opponent)
 
@@ -34,14 +44,18 @@ class Session:
         self.notation = []
         # Positions before each move, oldest first; undo restores the last one.
         self.history = []
+        # The arguments given to play for each move, oldest first. A save keeps these;
+        # loading replays them, which also rebuilds history for undo.
+        self.played = []
         self.opponent = opponent
 
-    def play(self, source, target):
+    def play(self, *args):
         if self.game_over():
             raise ValueError("The game is over")
         before = copy_position(self.position)
-        label = move(self.position, source, target)
+        label = move(self.position, *args)
         self.history.append(before)
+        self.played.append(list(args))
         self.notation.append(label)
         self.after_move()
 
@@ -72,7 +86,54 @@ class Session:
         for _ in range(min(count, len(self.history))):
             self.position = self.history.pop()
             self.notation.pop()
+            self.played.pop()
         self.after_move()
+
+    def to_save(self):
+        return {
+            "version": SAVE_VERSION,
+            "opponent": self.opponent,
+            "moves": self.played,
+            "notation": self.notation,
+            "board": self.position[0],
+            "turn": self.position[1],
+        }
+
+    @classmethod
+    def from_save(cls, data):
+        """Rebuild a session by replaying the saved moves, checking them against the save."""
+        if not isinstance(data, dict) or data.get("version") != SAVE_VERSION:
+            raise ValueError("Not a saved game from this version")
+        played = data.get("moves")
+        if not isinstance(played, list) or not all(isinstance(m, list) for m in played):
+            raise ValueError("The saved game has no valid move list")
+        session = cls(data.get("opponent"))
+        for entry in played:
+            session.play(*entry)
+        if (session.notation != data.get("notation")
+                or session.position[0] != data.get("board")
+                or session.position[1] != data.get("turn")):
+            raise ValueError("The saved game does not match its moves")
+        return session
+
+    def save(self):
+        path = Path(self.save_path)
+        temporary = path.with_name(path.name + ".tmp")
+        try:
+            temporary.write_text(json.dumps(self.to_save(), indent=1))
+            os.replace(temporary, path)
+        except OSError as error:
+            raise ValueError(f"Could not save the game: {error.strerror}") from None
+
+    def load(self):
+        try:
+            text = Path(self.save_path).read_text()
+        except FileNotFoundError:
+            raise ValueError("There is no saved game") from None
+        except OSError as error:
+            raise ValueError(f"Could not load the game: {error.strerror}") from None
+        restored = self.from_save(json.loads(text))
+        vars(self).update(vars(restored))
 
     def after_move(self):
         pass
@@ -108,6 +169,10 @@ class Session:
             self.play(*choose_move(self.position))
         elif command == "undo":
             self.undo()
+        elif command == "save":
+            self.save()
+        elif command == "load":
+            self.load()
         elif command == "legal":
             targets = legal_moves(self.position, action.get("source"))
             return {"targets": [] if self.game_over() else targets}

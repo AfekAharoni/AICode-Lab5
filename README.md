@@ -40,6 +40,11 @@ To reach promotion quickly from a new game, play a2-a4, h7-h5, a4-a5, h5-h4, a5-
 h4-h3, a6-b7, h3-g2. White can then play b7 to a8. In tests, the `promotion-setup` action
 plays the same moves.
 
+**Save and load.** "Save game" writes the current game to `game.save.json` next to
+`server.py` (choose another file with `python3 server.py --save-file PATH`). "Load saved
+game" restores it, also after a server restart: board, turn, move list, opponent, and the
+full move history, which is replayed and checked against the saved board on load.
+
 ## Files
 
 - `game.py`: board and turn in a position list; movement, check, checkmate and stalemate.
