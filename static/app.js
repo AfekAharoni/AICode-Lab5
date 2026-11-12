@@ -79,7 +79,8 @@ function render() {
                           : `${state.winner} wins`;
   document.querySelector('#turn').textContent =
     state.status === 'checkmate' ? `Checkmate. ${winner}`
-    : state.status === 'stalemate' ? 'Stalemate. Draw'
+    : state.draw === 'stalemate' ? 'Stalemate. Draw'
+    : state.draw ? `Draw by ${state.draw}`
     : state.status === 'check' ? `${side}. Check` : side;
   const pairs = [];
   for (let i = 0; i < state.moves.length; i += 2) pairs.push(state.moves.slice(i, i + 2));
@@ -109,10 +110,11 @@ function coordinate(kind, text) {
   return label;
 }
 
+const gameOver = () => state.status === 'checkmate' || Boolean(state.draw);
+
 // Against the computer, it answers after a short pause so each move is seen and heard.
 async function computerReply() {
-  const over = state.status === 'checkmate' || state.status === 'stalemate';
-  if (state.opponent !== 'computer' || state.turn !== 'b' || over) return;
+  if (state.opponent !== 'computer' || state.turn !== 'b' || gameOver()) return;
   await new Promise(resolve => setTimeout(resolve, 500));
   state = await request({action: 'computer-move'});
   render();
@@ -130,7 +132,7 @@ async function clickSquare(square) {
       selected = null; targets = [];
     } else {
       targets = (await request({action:'legal', source:square})).targets;
-      selected = state.board[square]?.[0] === state.turn ? square : null;
+      selected = state.board[square]?.[0] === state.turn && !gameOver() ? square : null;
     }
     render();
     await computerReply();

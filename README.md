@@ -14,6 +14,14 @@ python3 server.py
 python -m pytest
 ```
 
+The browser tests in `tests/test_gui.py` drive the real page in headless Chromium. Once per
+machine, install the browser and, on Linux/WSL, its system libraries:
+
+```sh
+python -m playwright install chromium
+sudo .venv/bin/python -m playwright install-deps chromium
+```
+
 Start a game against another person or against the computer. Against the computer you
 play White; it looks one move ahead and plays the move that leaves it the most material,
 preferring checkmate. Select a piece, then a highlighted destination. White moves first.
@@ -21,9 +29,12 @@ Standard movement, captures, check, checkmate and stalemate apply: you cannot le
 own king in check, checkmate wins, and stalemate is a draw. Pawns initially remain pawns at
 the far rank; a later branch adds promotion to a piece the player chooses. There is no clock.
 
-**Not supported: castling and en passant.** Neither move exists in this game. The other
-draw rules (insufficient material, threefold repetition, the fifty-move rule) are not
-implemented either.
+**Not supported: castling and en passant.** Neither move exists in this game.
+
+The game ends in a draw automatically on stalemate or when neither side has enough
+material to checkmate: kings alone, kings with a single bishop or knight, or kings with
+bishops that all stand on one square colour. Threefold repetition and the fifty-move rule
+are not implemented.
 
 To reach promotion quickly from a new game, play a2-a4, h7-h5, a4-a5, h5-h4, a5-a6,
 h4-h3, a6-b7, h3-g2. White can then play b7 to a8. In tests, the `promotion-setup` action

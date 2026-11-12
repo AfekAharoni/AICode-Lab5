@@ -1,7 +1,8 @@
 """Movement rules for the lab's chess variant.
 
 Check, checkmate and stalemate follow standard chess. There is no castling and no
-en passant.
+en passant. When neither side has enough material to checkmate, the game is drawn
+automatically. Threefold repetition and the fifty-move rule are not implemented.
 """
 
 FILES = "abcdefgh"
@@ -50,6 +51,22 @@ def status(position):
            if piece[0] == turn):
         return "check" if check else None
     return "checkmate" if check else "stalemate"
+
+
+def insufficient_material(board):
+    """True when neither side can ever checkmate.
+
+    That is: kings alone, kings with a single bishop or knight, or kings with bishops
+    that all stand on squares of one colour.
+    """
+    others = [(square, piece[1]) for square, piece in board.items() if piece[1] != "K"]
+    if any(kind not in ("B", "N") for _, kind in others):
+        return False
+    if len(others) <= 1:
+        return True
+    if all(kind == "B" for _, kind in others):
+        return len({sum(coordinates(square)) % 2 for square, _ in others}) == 1
+    return False
 
 
 def winner(position):
