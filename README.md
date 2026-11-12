@@ -61,3 +61,12 @@ save/load should also preserve the ability to redo.
 
 Establish checks for interactions as you integrate features. Supplied branches are workshop
 contributions to inspect and integrate, not a guarantee of correctness in every combination.
+
+## Team decisions
+
+- **Undo against the computer** takes back a full turn: the computer's reply and the
+  player's move before it, so it is the player's (White's) move again. If the computer has
+  not replied (e.g. the player just gave checkmate), only the player's move is undone.
+  Undo at the beginning does nothing; New game clears the undo history.
+- Undo is implemented in `Session` as a stack of positions saved before each move
+  (`Session.history`); after undo, `after_move()` runs so sidebar data is recomputed.
