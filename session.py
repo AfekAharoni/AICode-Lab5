@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 from computer import choose_move
+from captured import missing_pieces
 from game import (
     copy_position,
     insufficient_material,
@@ -47,6 +48,7 @@ class Session:
         # The arguments given to play for each move, oldest first. A save keeps these;
         # loading replays them, which also rebuilds history for undo.
         self.played = []
+        self.captured = []
         self.opponent = opponent
 
     def play(self, *args):
@@ -136,7 +138,7 @@ class Session:
         vars(self).update(vars(restored))
 
     def after_move(self):
-        pass
+        self.captured = missing_pieces(self.position)
 
     def view(self):
         return {
@@ -155,7 +157,7 @@ class Session:
                 and not self.game_over())
 
     def sidebar(self):
-        return {}
+        return {"captured": self.captured}
 
     def dispatch(self, action):
         command = action.get("action")
