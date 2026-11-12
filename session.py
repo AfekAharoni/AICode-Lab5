@@ -2,6 +2,7 @@
 
 from computer import choose_move
 from game import (
+    copy_position,
     legal_moves,
     move,
     new_position,
@@ -30,11 +31,33 @@ class Session:
             raise ValueError("Unknown opponent")
         self.position = new_position()
         self.notation = []
+        # Positions before each move, oldest first; undo restores the last one.
+        self.history = []
         self.opponent = opponent
 
     def play(self, source, target):
+        before = copy_position(self.position)
         label = move(self.position, source, target)
+        self.history.append(before)
         self.notation.append(label)
+        self.after_move()
+
+    def undo(self):
+        """Take back the last move; against the computer, take back a full turn.
+
+        Against the computer, undo removes the computer's reply and the player's move
+        before it, so it is White's (the player's) turn again. If the computer has not
+        replied (for example, the player just gave checkmate), only the player's move
+        is undone. Undo at the beginning does nothing.
+        """
+        if not self.history:
+            return
+        count = 1
+        if self.opponent == "computer" and self.position[1] == "w":
+            count = 2
+        for _ in range(min(count, len(self.history))):
+            self.position = self.history.pop()
+            self.notation.pop()
         self.after_move()
 
     def after_move(self):
@@ -68,6 +91,8 @@ class Session:
             if not self.computer_to_move():
                 raise ValueError("It is not the computer's turn")
             self.play(*choose_move(self.position))
+        elif command == "undo":
+            self.undo()
         elif command == "legal":
             return {"targets": legal_moves(self.position, action.get("source"))}
         elif command == "new":
