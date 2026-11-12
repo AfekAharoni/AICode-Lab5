@@ -12,6 +12,7 @@ from game import (
     legal_moves,
     move,
     new_position,
+    promotes,
     status,
     winner,
 )
@@ -51,13 +52,13 @@ class Session:
         self.captured = []
         self.opponent = opponent
 
-    def play(self, *args):
+    def play(self, source, target, promotion=None):
         if self.game_over():
             raise ValueError("The game is over")
         before = copy_position(self.position)
-        label = move(self.position, *args)
+        label = move(self.position, source, target, promotion)
         self.history.append(before)
-        self.played.append(list(args))
+        self.played.append([source, target] + ([promotion] if promotion else []))
         self.notation.append(label)
         self.after_move()
 
@@ -164,7 +165,7 @@ class Session:
         if command == "move":
             if self.computer_to_move():
                 raise ValueError("Wait for the computer's move")
-            self.play(action.get("source"), action.get("target"))
+            self.play(action.get("source"), action.get("target"), action.get("promotion"))
         elif command == "computer-move":
             if not self.computer_to_move():
                 raise ValueError("It is not the computer's turn")
@@ -176,8 +177,12 @@ class Session:
         elif command == "load":
             self.load()
         elif command == "legal":
-            targets = legal_moves(self.position, action.get("source"))
-            return {"targets": [] if self.game_over() else targets}
+            source = action.get("source")
+            targets = legal_moves(self.position, source)
+            if self.game_over():
+                targets = []
+            return {"targets": targets,
+                    "promotions": [t for t in targets if promotes(self.position, source, t)]}
         elif command == "new":
             self.reset(action.get("opponent", "human"))
         elif command == "promotion-setup":

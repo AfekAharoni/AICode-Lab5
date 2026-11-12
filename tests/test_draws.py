@@ -72,7 +72,8 @@ def test_capturing_the_last_rook_draws_and_ends_the_game():
     assert view["status"] is None
     with pytest.raises(ValueError, match="over"):
         session.dispatch({"action": "move", "source": "e8", "target": "d8"})
-    assert session.dispatch({"action": "legal", "source": "e8"}) == {"targets": []}
+    legal = session.dispatch({"action": "legal", "source": "e8"})
+    assert legal["targets"] == [] and legal["promotions"] == []
 
 
 def test_undo_after_a_draw_reopens_the_game():
