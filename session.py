@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 from computer import choose_move
-from captured import missing_pieces
+from captured import captured_pieces
 from game import (
     copy_position,
     insufficient_material,
@@ -49,6 +49,8 @@ class Session:
         # The arguments given to play for each move, oldest first. A save keeps these;
         # loading replays them, which also rebuilds history for undo.
         self.played = []
+        # The piece each move took (None if it took nothing), parallel to history.
+        self.captures = []
         self.captured = []
         self.opponent = opponent
 
@@ -56,8 +58,10 @@ class Session:
         if self.game_over():
             raise ValueError("The game is over")
         before = copy_position(self.position)
+        taken = self.position[0].get(target)
         label = move(self.position, source, target, promotion)
         self.history.append(before)
+        self.captures.append(taken)
         self.played.append([source, target] + ([promotion] if promotion else []))
         self.notation.append(label)
         self.after_move()
@@ -90,6 +94,7 @@ class Session:
             self.position = self.history.pop()
             self.notation.pop()
             self.played.pop()
+            self.captures.pop()
         self.after_move()
 
     def to_save(self):
@@ -139,7 +144,7 @@ class Session:
         vars(self).update(vars(restored))
 
     def after_move(self):
-        self.captured = missing_pieces(self.position)
+        self.captured = captured_pieces(self.captures)
 
     def view(self):
         return {

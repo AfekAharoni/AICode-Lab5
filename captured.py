@@ -1,10 +1,10 @@
-"""Counts for the captured-pieces sidebar."""
-from collections import Counter
-
-from game import new_position
+"""The captured-pieces sidebar."""
 
 
-def missing_pieces(position):
-    initial = Counter(new_position()[0].values())
-    current = Counter(position[0].values())
-    return sorted((initial - current).elements())
+def captured_pieces(captures):
+    """Pieces taken so far, sorted, from the per-move log (None for a non-capture).
+
+    Each entry is the piece as it stood on the target square when it was taken, so a
+    promoted piece is shown with its promoted type and a promotion alone adds nothing.
+    """
+    return sorted(piece for piece in captures if piece is not None)

@@ -91,3 +91,7 @@ contributions to inspect and integrate, not a guarantee of correctness in every 
   position, so undo out of a drawn position reopens the game. Against the computer, a
   player's move that draws gets no reply, so undo takes back only that move (as with
   checkmate).
+- **Captured pieces** come from a per-move log (`Session.captures`: the piece on the target
+  square, or None), not from comparing the board with the starting position. That
+  comparison counted a promoted pawn as captured and missed captured promoted pieces.
+  Undo pops the log; loading rebuilds it by replaying the saved moves.
