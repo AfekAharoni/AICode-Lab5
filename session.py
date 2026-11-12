@@ -22,6 +22,10 @@ PROMOTION_SETUP = [
 
 class Session:
     def __init__(self, opponent="human"):
+        self.reset(opponent)
+
+    def reset(self, opponent="human"):
+        """Start a new game, discarding the previous one."""
         if opponent not in ("human", "computer"):
             raise ValueError("Unknown opponent")
         self.position = new_position()
@@ -67,9 +71,9 @@ class Session:
         elif command == "legal":
             return {"targets": legal_moves(self.position, action.get("source"))}
         elif command == "new":
-            self.__init__(action.get("opponent", "human"))
+            self.reset(action.get("opponent", "human"))
         elif command == "promotion-setup":
-            self.__init__()
+            self.reset()
             for source, target in PROMOTION_SETUP:
                 self.play(source, target)
         else:
